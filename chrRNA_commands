@@ -1,0 +1,21 @@
+#!/bin/sh
+#$ -S /bin/sh
+#$ -cwd
+
+###########adaptor and polyT trimming################
+cutadapt -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCA -o read1_cutadapt.fastq file_name_R1.fastq
+cutadapt -g "XT{151}" --minimum-length 40 --too-short-output read1_too_short40_polyT151.fastq -o read1_cutadapt_polyT151.fastq read1_cutadapt.fastq
+
+###########alignment to genome###################
+STAR --runThreadN 8 --genomeDir ~/Arabidopsis_TAIR10_STAR --readFilesIn read1_cutadapt_polyT151.fastq --outSAMtype BAM SortedByCoordinate --limitBAMsortRAM 16000000000 --outFilterType BySJout --alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFileNamePrefix ./file_name --quantMode GeneCounts
+
+
+###########make bedgraph for IGV views#################
+bedtools genomecov -ibam file_name.sortedByCoord.out.bam -g Chromosome_lengths_Arabidopsis.txt -bg -split -strand + > file_name_rev_strand.bedgraph
+bedtools genomecov -ibam file_name.sortedByCoord.out.bam -g Chromosome_lengths_Arabidopsis.txt -bg -split -strand - > file_name_fwd_strand.bedgraph
+awk '{print $1,$2,$3,-$4}' file_name_rev_strand.bedgraph > file_name_rev_strand1.bedgraph
+cat file_name_fwd_strand.bedgraph file_name_rev_strand1.bedgraph > file_name.bedgraph
+
+
+###########normalized with uniquely mapped reads###############
+awk '{print $1,$2,$3,$4/(X [million mapped reads])}' file_name.bedgraph > file_name_unique_normalize.bedgraph
