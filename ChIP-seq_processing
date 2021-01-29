@@ -1,0 +1,22 @@
+#!/bin/sh
+#$ -S /bin/sh
+#$ -cwd
+
+
+for i in *fastq
+do
+
+a1=$(echo $i | sed -e 's/.fastq//')
+printf "this_is\t$a1\n"
+bowtie -m 1 --best --chunkmbs 200 ~/BowtieIndex/genome $i -S $a1".sam"
+samtools view -bS $a1".sam" |samtools sort -o $a1".bam"
+samtools index $a1".bam"
+bedtools bamtobed -i $a1".bam" > $a1".bed"
+bedtools slop -i $a1".bed" -g ~/refs/Chromosome_lengths_Arabidopsis.txt -l 0 -r 150 -s > $a1"_slop.bed"
+bedtools coverage -a ~/refs/TAIR10_all_33602_a.bed -b $a1"_slop.bed" > $a1"_coverage.bed"
+~/IGVTools/igvtools count -e 150 $a1".bam" $a1".tdf" tair10
+
+done
+
+gzip *.fastq
+gzip *.sam
